@@ -27,6 +27,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/plugin"
@@ -305,7 +306,11 @@ func (s *Snapshotter) removeDevice(ctx context.Context, key string) error {
 	deviceName := s.getDeviceName(snapID)
 	if err := s.pool.RemoveDevice(ctx, deviceName); err != nil {
 		log.G(ctx).WithError(err).Errorf("failed to remove device")
-		return err
+		// Tell snapshot GC continue to collect other snapshots.
+		// Otherwise, one snapshot collection failure will stop
+		// the GC, and all snapshots won't be collected even though
+		// having no relationship with the failed one.
+		return errdefs.ErrFailedPrecondition
 	}
 
 	return nil
