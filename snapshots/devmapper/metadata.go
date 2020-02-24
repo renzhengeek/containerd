@@ -38,7 +38,6 @@ type deviceIDState byte
 const (
 	deviceFree deviceIDState = iota
 	deviceTaken
-	deviceFaulty
 )
 
 // Bucket names
@@ -122,10 +121,14 @@ func (m *PoolMetadata) AddDevice(ctx context.Context, info *DeviceInfo) error {
 	return nil
 }
 
-// MarkFaulty marks the given device and corresponding devmapper device ID as faulty.
+// MarkFaulty marks the given device as faulty.
+//
+// TODO (need clarfication): how does this work? With `another devmapper ID`, it should
+// refers to another device, so it's not clear how it refers to `Faulty` state and recreate
+// it.
+//
 // The snapshotter might attempt to recreate a device in 'Faulty' state with another devmapper ID in
 // subsequent calls, and in case of success it's status will be changed to 'Created' or 'Activated'.
-// The devmapper dev ID will remain in 'deviceFaulty' state until manually handled by a user.
 func (m *PoolMetadata) MarkFaulty(ctx context.Context, name string) error {
 	return m.db.Update(func(tx *bolt.Tx) error {
 		var (
@@ -143,7 +146,7 @@ func (m *PoolMetadata) MarkFaulty(ctx context.Context, name string) error {
 			return err
 		}
 
-		return markDeviceID(tx, device.DeviceID, deviceFaulty)
+		return nil
 	})
 }
 
