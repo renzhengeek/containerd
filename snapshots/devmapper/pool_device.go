@@ -84,7 +84,7 @@ func (p *PoolDevice) ensureDeviceStates(ctx context.Context) error {
 	var faultyDevices []*DeviceInfo
 	var activatedDevices []*DeviceInfo
 
-	if err := p.metadata.WalkDevices(ctx, func(info *DeviceInfo) error {
+	if err := p.WalkDevices(ctx, func(info *DeviceInfo) error {
 		switch info.State {
 		case Suspended, Resumed, Deactivated, Removed, Faulty:
 		case Activated:
@@ -505,6 +505,13 @@ func (p *PoolDevice) RemovePool(ctx context.Context) error {
 // MarkDeviceState changes the device's state in metastore
 func (p *PoolDevice) MarkDeviceState(ctx context.Context, name string, state DeviceState) error {
 	return p.metadata.ChangeDeviceState(ctx, name, state)
+}
+
+// WalkDevices iterates all devices in pool metadata
+func (p *PoolDevice) WalkDevices(ctx context.Context, cb func(info *DeviceInfo) error) error {
+	return p.metadata.WalkDevices(ctx, func(info *DeviceInfo) error {
+		return cb(info)
+	})
 }
 
 // Close closes pool device (thin-pool will not be removed)
