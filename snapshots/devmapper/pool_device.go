@@ -116,7 +116,15 @@ func (p *PoolDevice) ensureDeviceStates(ctx context.Context) error {
 			WithField("error", dev.Error).
 			Warnf("devmapper device %q has invalid state %q, marking as faulty", dev.Name, dev.State)
 
-		if err := p.metadata.MarkFaulty(ctx, dev.Name); err != nil {
+		// Marks the given device as faulty.
+		//
+		// The snapshotter might attempt to recreate a device in 'Faulty' state with another devmapper ID in
+		// subsequent calls, and in case of success it's status will be changed to 'Created' or 'Activated'.
+		//
+		// TODO (need clarfication): how does this work? With `another devmapper ID`, it shoule refers to
+		//  another device, so it's not clear how it refers to `Faulty` state and recreate it, instead, IIRC,
+		// the `Create` request comes down to retry with the same SnapID from generic snapshot layer.
+		if err := p.MarkDeviceState(ctx, dev.Name, Faulty); err != nil {
 			result = multierror.Append(result, err)
 		}
 	}
@@ -189,7 +197,7 @@ func (p *PoolDevice) CreateThinDevice(ctx context.Context, deviceName string, vi
 			if delErr != nil {
 				// Failed to rollback, mark the device as faulty and keep metadata in order to
 				// preserve the faulty device ID
-				retErr = multierror.Append(retErr, delErr, p.metadata.MarkFaulty(ctx, info.Name))
+				retErr = multierror.Append(retErr, delErr, p.MarkDeviceState(ctx, info.Name, Faulty))
 				return
 			}
 
@@ -204,7 +212,7 @@ func (p *PoolDevice) CreateThinDevice(ctx context.Context, deviceName string, vi
 
 		// We're unable to create the devmapper device, most likely something wrong with the deviceID
 		if devErr != nil {
-			retErr = multierror.Append(retErr, p.metadata.MarkFaulty(ctx, info.Name))
+			retErr = multierror.Append(retErr, p.MarkDeviceState(ctx, info.Name, Faulty))
 			return
 		}
 	}()
@@ -280,7 +288,7 @@ func (p *PoolDevice) CreateSnapshotDevice(ctx context.Context, deviceName string
 			if delErr != nil {
 				// Failed to rollback, mark the device as faulty and keep metadata in order to
 				// preserve the faulty device ID
-				retErr = multierror.Append(retErr, delErr, p.metadata.MarkFaulty(ctx, snapInfo.Name))
+				retErr = multierror.Append(retErr, delErr, p.MarkDeviceState(ctx, snapInfo.Name, Faulty))
 				return
 			}
 
@@ -295,7 +303,7 @@ func (p *PoolDevice) CreateSnapshotDevice(ctx context.Context, deviceName string
 
 		// We're unable to create the devmapper device, most likely something wrong with the deviceID
 		if devErr != nil {
-			retErr = multierror.Append(retErr, p.metadata.MarkFaulty(ctx, snapInfo.Name))
+			retErr = multierror.Append(retErr, p.MarkDeviceState(ctx, snapInfo.Name, Faulty))
 			return
 		}
 	}()
@@ -492,6 +500,11 @@ func (p *PoolDevice) RemovePool(ctx context.Context) error {
 	}
 
 	return result.ErrorOrNil()
+}
+
+// MarkDeviceState changes the device's state in metastore
+func (p *PoolDevice) MarkDeviceState(ctx context.Context, name string, state DeviceState) error {
+	return p.metadata.ChangeDeviceState(ctx, name, state)
 }
 
 // Close closes pool device (thin-pool will not be removed)

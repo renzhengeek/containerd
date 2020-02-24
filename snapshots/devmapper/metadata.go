@@ -129,7 +129,7 @@ func (m *PoolMetadata) AddDevice(ctx context.Context, info *DeviceInfo) error {
 //
 // The snapshotter might attempt to recreate a device in 'Faulty' state with another devmapper ID in
 // subsequent calls, and in case of success it's status will be changed to 'Created' or 'Activated'.
-func (m *PoolMetadata) MarkFaulty(ctx context.Context, name string) error {
+func (m *PoolMetadata) ChangeDeviceState(ctx context.Context, name string, state DeviceState) error {
 	return m.db.Update(func(tx *bolt.Tx) error {
 		var (
 			device    = DeviceInfo{}
@@ -140,7 +140,7 @@ func (m *PoolMetadata) MarkFaulty(ctx context.Context, name string) error {
 			return err
 		}
 
-		device.State = Faulty
+		device.State = state
 
 		if err := putObject(devBucket, name, &device, true); err != nil {
 			return err
