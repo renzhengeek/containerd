@@ -40,6 +40,9 @@ type Config struct {
 	// Defines how much space to allocate when creating base image for container
 	BaseImageSize      string `toml:"base_image_size"`
 	BaseImageSizeBytes uint64 `toml:"-"`
+
+	// Flag to async remove device in snapshot GC's cleanup callback
+	AsyncRemove bool `toml:"async_remove"`
 }
 
 // LoadConfig reads devmapper configuration file from disk in TOML format

@@ -297,15 +297,13 @@ func (s *Snapshotter) Remove(ctx context.Context, key string) error {
 }
 
 func (s *Snapshotter) removeDevice(ctx context.Context, key string) error {
-	var asyncRemove = true
-
 	snapID, _, err := storage.Remove(ctx, key)
 	if err != nil {
 		return err
 	}
 
 	deviceName := s.getDeviceName(snapID)
-	if !asyncRemove {
+	if !s.config.AsyncRemove {
 		if err := s.pool.RemoveDevice(ctx, deviceName); err != nil {
 			log.G(ctx).WithError(err).Errorf("failed to remove device")
 			return err
